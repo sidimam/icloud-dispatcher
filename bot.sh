@@ -6,11 +6,12 @@
 #   #sofia 123456      → consegna il codice al container (expect in ascolto per 10 minuti dopo l'avvio)
 #   #stato             → giorni rimanenti del cookie di ogni container
 #   #aiuto             → elenco comandi
-# Nomi: famiglia simone daniela sofia maria. Richiede: TELEGRAM_TOKEN, ALLOWED_CHATS (separate da virgola).
+# Nomi: famiglia simone daniela sofia maria (oppure family sdimambro dmanieri sofdimambro mdimambro). Richiede: TELEGRAM_TOKEN, ALLOWED_CHATS (separate da virgola).
 set -u
 API="https://api.telegram.org/bot${TELEGRAM_TOKEN}"
 STATE=/app/state; mkdir -p "$STATE"; OFF="$STATE/offset"; [ -f "$OFF" ] || echo 0 > "$OFF"
-declare -A C=([famiglia]=iCloudpd-Family [simone]=iCloudpd-sdimambro [daniela]=iCloudpd-dmanieri [sofia]=iCloudpd-sofdimambro [maria]=iCloudpd-mdimambro)
+declare -A C=([famiglia]=iCloudpd-Family [family]=iCloudpd-Family [simone]=iCloudpd-sdimambro [sdimambro]=iCloudpd-sdimambro [daniela]=iCloudpd-dmanieri [dmanieri]=iCloudpd-dmanieri [sofia]=iCloudpd-sofdimambro [sofdimambro]=iCloudpd-sofdimambro [maria]=iCloudpd-mdimambro [mdimambro]=iCloudpd-mdimambro)
+NAMES="famiglia simone daniela sofia maria"  # nomi mostrati; accettati anche i nomi dei container (sdimambro, dmanieri, …)
 log(){ echo "$(date '+%F %T') $*"; }
 say(){ curl -s -X POST "$API/sendMessage" -d chat_id="$1" --data-urlencode text="$2" >/dev/null; }
 allowed(){ case ",${ALLOWED_CHATS}," in *",$1,"*) return 0;; *) return 1;; esac; }
@@ -32,11 +33,11 @@ while true; do
     allowed "$CHAT" || { log "ignoro chat $CHAT ($FROM): $TEXT"; continue; }
     T=$(echo "$TEXT" | tr 'A-Z' 'a-z' | sed -E 's/^\s+|\s+$//g')
     case "$T" in
-      "#aiuto"|"#help") say "$CHAT" "Comandi iCloudpd: #stato · #<nome> auth (riautentica) · #<nome> 123456 (codice Apple). Nomi: famiglia, simone, daniela, sofia, maria.";;
-      "#stato") M="📷 iCloudpd, giorni al rinnovo 2FA:"; for n in famiglia simone daniela sofia maria; do d=$(days_of "${C[$n]}"); M="$M"$'\n'"• $n: ${d:-n/d}"; auth_running "${C[$n]}" && M="$M (autenticazione in corso)"; done; say "$CHAT" "$M";;
+      "#aiuto"|"#help") say "$CHAT" "Comandi iCloudpd: #stato · #<nome> auth (riautentica) · #<nome> 123456 (codice Apple). Nomi: famiglia, simone, daniela, sofia, maria (o i nomi dei container: sdimambro, dmanieri, sofdimambro, mdimambro).";;
+      "#stato") M="📷 iCloudpd, giorni al rinnovo 2FA:"; for n in $NAMES; do d=$(days_of "${C[$n]}"); M="$M"$'\n'"• $n: ${d:-n/d}"; auth_running "${C[$n]}" && M="$M (autenticazione in corso)"; done; say "$CHAT" "$M";;
       \#*)
         N=${T#\#}; N=${N%% *}; A=${T#* }; CT=${C[$N]:-}
-        [ -z "$CT" ] && { say "$CHAT" "Nome '$N' sconosciuto. Nomi: ${!C[*]}"; continue; }
+        [ -z "$CT" ] && { say "$CHAT" "Nome '$N' sconosciuto. Nomi: $NAMES"; continue; }
         if [ "$A" = "auth" ]; then
           if auth_running "$CT"; then say "$CHAT" "⏳ $N: autenticazione già in corso, aspetto il codice (#$N 123456)."; continue; fi
           start_auth "$CT"; log "$FROM avvia auth su $CT"
