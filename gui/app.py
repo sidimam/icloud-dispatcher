@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
-"""iCloudpd-dispatcher GUI: utenti = container icloudpd, associazioni Telegram, cosa scaricare, rinnovo 2FA."""
-import json, os, re, subprocess, shutil, datetime, html
+"""icloud-dispatcher GUI: utenti = container iCloud (foto: boredazfcuk/icloudpd; iCloud Drive: mandarons/icloud-drive), chat Telegram, cosa scaricare, rinnovo 2FA."""
+import json, os, re, subprocess, shutil, datetime, html, time
 from flask import Flask, request, redirect, url_for, render_template, flash, abort
 
 APP_DIR = os.environ.get("APP_DIR", "/app"); CFG = os.path.join(APP_DIR, "config.json")
@@ -55,7 +55,55 @@ def start_auth(c):
     dexec(c, f"rm -f /config/{ck} /config/{ck}.session; mkdir -p /tmp/icloudpd; : > /tmp/icloudpd/expect_input.txt; chmod 666 /tmp/icloudpd/expect_input.txt; nohup /usr/bin/expect /opt/authenticate.exp >/tmp/icloudpd/reauth.log 2>&1 &")
 def send_code(c, code): dexec(c, f"printf '%s\\n' '{code}' >> /tmp/icloudpd/expect_input.txt")
 
+def utype(u): return u.get("type", "icloudpd")
+def host_to_local(path):
+    """Percorso host (/mnt/user/...) → percorso dentro questo container (mount /appdata, /photos, /documents)."""
+    p = cfg()["paths"]
+    for host, local in (("/mnt/user/appdata", p["appdata"]), ("/mnt/user/media/photos", p["photos"]), ("/mnt/user/documents", p.get("documents", "/documents"))):
+        if path.startswith(host): return path.replace(host, local, 1)
+    return path
+def yaml_get(path, key, default=""):
+    try:
+        for line in open(path):
+            m = re.match(r"\s*%s:\s*(.*?)\s*$" % re.escape(key), line)
+            if m: return m.group(1).strip().strip('"')
+    except FileNotFoundError: pass
+    return default
+def yaml_set(path, key, value):
+    lines = open(path).read().splitlines(); done = False
+    for i, l in enumerate(lines):
+        m = re.match(r"(\s*)%s:\s*" % re.escape(key), l)
+        if m: lines[i] = f"{m.group(1)}{key}: {value}"; done = True; break
+    if not done: lines.append(f"  {key}: {value}")
+    open(path, "w").write("\n".join(lines) + "\n")
+def drive_days(local_config):
+    d = os.path.join(local_config, "session_data")
+    try: files = [os.path.join(d, f) for f in os.listdir(d) if f.endswith(".session")]
+    except FileNotFoundError: return ""
+    if not files: return ""
+    age = time.time() - max(os.path.getmtime(f) for f in files)
+    return str(int((int(cfg()["defaults"].get("drive_session_days", 30)) * 86400 - age) // 86400))
+def d_auth_running(c): return dexec(c, 'pgrep -f "icloud --username" >/dev/null')[0] == 0
+def d_start_auth(c, apple):
+    dexec(c, f"rm -f /tmp/2fa.fifo /tmp/2fa.log; mkfifo -m 666 /tmp/2fa.fifo; nohup sh -c 'exec 3<>/tmp/2fa.fifo; su-exec abc icloud --username={apple} --session-directory=/config/session_data <&3 >/tmp/2fa.log 2>&1; echo EXIT=$? >>/tmp/2fa.log; rm -f /tmp/2fa.fifo' >/dev/null 2>&1 &")
+def d_send_code(c, code): dexec(c, f"printf '%s\\n' '{code}' > /tmp/2fa.fifo")
+
 def user_view(name, u):
+    if utype(u) == "iclouddrive": return drive_view(name, u)
+    return photos_view(name, u)
+def drive_view(name, u):
+    c = u["container"]; info = inspect(c); v = {"name": name, "type": "iclouddrive", "label": u.get("label", name), "container": c, "chat_id": u.get("chat_id", ""), "exists": info is not None, "apple_id": u.get("apple_id", "")}
+    if not info: return v
+    m = mounts(info); conf_host = m.get("/config", ""); local = host_to_local(conf_host); y = os.path.join(local, "config.yaml")
+    ports = info.get("HostConfig", {}).get("PortBindings", {}).get("8080/tcp") or []
+    v.update(apple_id=yaml_get(y, "username", u.get("apple_id", "")), sync_interval=yaml_get(y, "sync_interval", ""), remove_obsolete=yaml_get(y, "remove_obsolete", "false"),
+             drive_host=m.get("/icloud/drive", ""), config_host=conf_host, running=info["State"]["Running"], health=info["State"].get("Health", {}).get("Status", ""), image=info["Config"]["Image"],
+             webui_port=(ports[0].get("HostPort") if ports else ""), days=drive_days(local))
+    if v["running"]:
+        v["auth"] = d_auth_running(c)
+        rc, last, _ = sh(f"docker logs --since 72h {c} 2>&1 | grep -E 'Downloading|completed|2FA|Retrying login|Syncing drive' | tail -1", 30); v["last"] = re.sub(r"^.*?:: (INFO|WARNING|ERROR) :: \S+ :: \S+ :: \d+ :: ", "", last)[:140]
+    return v
+def photos_view(name, u):
     c = u["container"]; info = inspect(c); v = {"name": name, "label": u.get("label", name), "container": c, "chat_id": u.get("chat_id", ""), "exists": info is not None}
     if not info: return v
     e = env_of(info); conf = read_conf(conf_path(info) or "") ; g = lambda k, d="": conf.get(k) or e.get(k) or d
@@ -70,24 +118,53 @@ def user_view(name, u):
 @app.route("/")
 def index():
     c = cfg(); users = [user_view(n, u) for n, u in c["users"].items()]
-    return render_template("index.html", users=users, cfg=c)
+    # Una colonna per persona: la scheda iCloud Drive sta sotto quella delle foto dello stesso Apple ID
+    # (o del nome indicato in config.json con "person": "simone").
+    groups, placed = [], set()
+    for v in users:
+        if v["type"] != "icloudpd" and (c["users"][v["name"]].get("person") or any(w["type"] == "icloudpd" and w.get("apple_id") and w.get("apple_id") == v.get("apple_id") for w in users)): continue
+        cards = [v]
+        for w in users:
+            if w["type"] == "iclouddrive" and w["name"] not in placed and (c["users"][w["name"]].get("person") == v["name"] or (w.get("apple_id") and w.get("apple_id") == v.get("apple_id"))):
+                cards.append(w); placed.add(w["name"])
+        groups.append(cards); placed.add(v["name"])
+    for v in users:
+        if v["name"] not in placed: groups.append([v]); placed.add(v["name"])
+    return render_template("index.html", groups=groups, cfg=c)
 @app.post("/u/<name>/auth")
 def u_auth(name):
     c = cfg(); u = c["users"].get(name) or abort(404)
-    start_auth(u["container"]); telegram(u.get("chat_id") or c.get("default_chat_id"), f"🔐 {name}: riautenticazione avviata dalla GUI. Apple invia il codice a 6 cifre; rispondi con: #{name} 123456")
+    if utype(u) == "iclouddrive":
+        if not u.get("apple_id"): flash(f"{name}: manca l'Apple ID in config.json"); return redirect(url_for("index"))
+        d_start_auth(u["container"], u["apple_id"])
+    else: start_auth(u["container"])
+    telegram(u.get("chat_id") or c.get("default_chat_id"), f"🔐 {name}: riautenticazione avviata dalla GUI. Apple invia il codice a 6 cifre; rispondi con: #{name} 123456")
     flash(f"Riautenticazione avviata su {u['container']}: inserisci il codice Apple qui sotto o in Telegram con #{name} 123456"); return redirect(url_for("index"))
 @app.post("/u/<name>/code")
 def u_code(name):
     c = cfg(); u = c["users"].get(name) or abort(404); code = re.sub(r"\D", "", request.form.get("code", ""))
     if len(code) != 6: flash("Codice non valido: servono 6 cifre"); return redirect(url_for("index"))
-    if not auth_running(u["container"]): flash(f"{name}: nessuna autenticazione in corso, prima «Riautentica»"); return redirect(url_for("index"))
-    send_code(u["container"], code); flash(f"Codice consegnato a {u['container']}: verifica tra ~30 s nei giorni rimanenti"); return redirect(url_for("index"))
+    drive = utype(u) == "iclouddrive"
+    if not (d_auth_running(u["container"]) if drive else auth_running(u["container"])): flash(f"{name}: nessuna autenticazione in corso, prima «Riautentica»"); return redirect(url_for("index"))
+    (d_send_code if drive else send_code)(u["container"], code)
+    if drive:
+        time.sleep(20); rc, out, _ = dexec(u["container"], "cat /tmp/2fa.log 2>/dev/null | tail -3")
+        if "EXIT=0" in out and not re.search(r"failed|invalid|error", out, re.I): sh(f"docker restart {u['container']}", 120); flash(f"{name}: sessione Apple rinnovata, container riavviato")
+        else: flash(f"{name}: esito non ancora confermato ({out[-120:]}) — ricontrolla tra poco o riprova «Riautentica»")
+        return redirect(url_for("index"))
+    flash(f"Codice consegnato a {u['container']}: verifica tra ~30 s nei giorni rimanenti"); return redirect(url_for("index"))
 @app.post("/u/<name>/restart")
 def u_restart(name):
     u = cfg()["users"].get(name) or abort(404); sh(f"docker restart {u['container']}", 120); flash(f"{u['container']} riavviato: ricontrolla iCloud subito"); return redirect(url_for("index"))
 @app.post("/u/<name>/settings")
 def u_settings(name):
     c = cfg(); u = c["users"].get(name) or abort(404); f = request.form; info = inspect(u["container"]) or abort(404)
+    if utype(u) == "iclouddrive":
+        y = os.path.join(host_to_local(mounts(info).get("/config", "")), "config.yaml")
+        if f.get("sync_interval", "").strip().isdigit(): yaml_set(y, "sync_interval", f["sync_interval"].strip())
+        yaml_set(y, "remove_obsolete", "true" if f.get("remove_obsolete") == "on" else "false")
+        u["label"] = f.get("label", u.get("label", name)).strip() or name; u["chat_id"] = f.get("telegram_chat_id", "").strip(); u["apple_id"] = f.get("apple_id", u.get("apple_id", "")).strip() or u.get("apple_id", ""); save(c)
+        sh(f"docker restart {u['container']}", 120); flash(f"{name}: config.yaml aggiornato, container riavviato"); return redirect(url_for("index"))
     upd = {k: f.get(k, "").strip() for k in ("photo_library", "photo_album", "folder_structure", "telegram_chat_id", "notification_days")}
     upd = {k: v for k, v in upd.items() if v != "" or k in ("photo_album",)}
     write_conf(conf_path(info), upd)
@@ -102,7 +179,8 @@ def u_delete(name):
 def new():
     c = cfg()
     if request.method == "GET": return render_template("new.html", cfg=c, bases=[u["container"] for u in c["users"].values() if inspect(u["container"])])
-    f = request.form; name = re.sub(r"[^a-z0-9]", "", f["name"].lower()); short = re.sub(r"[^A-Za-z0-9]", "", f["short"]) or name
+    f = request.form; name = re.sub(r"[^a-z0-9-]", "", f["name"].lower()); short = re.sub(r"[^A-Za-z0-9]", "", f["short"]) or name
+    if f.get("type") == "iclouddrive": return new_drive(c, f, name, short)
     cont = f"iCloudpd-{short}"; base = f["base"]; apple = f["apple_id"].strip(); chat = f.get("chat_id", "").strip(); lib = f.get("photo_library", "PrimarySync").strip() or "PrimarySync"
     if not name or not apple or name in c["users"]: flash("Dati mancanti o nome già usato"); return redirect(url_for("new"))
     p = c["paths"]; d = c["defaults"]; appdata = f"{p['appdata']}/icloudpd-{short.lower()}"; photos = f"{p['photos']}/{short}"
@@ -125,6 +203,73 @@ def new():
     if rc != 0: flash(f"docker run fallito: {err[-300:]}"); return redirect(url_for("new"))
     c["users"][name] = {"container": cont, "label": f.get("label", name).strip() or name, "chat_id": chat}; c["aliases"][short.lower()] = name; save(c)
     flash(f"{cont} creato e avviato: ora il primo login Apple. Da Unraid: docker exec -it {cont} sync-icloud.sh --Initialise (password + codice 2FA). Autostart: attivalo dalla pagina Docker di Unraid.")
+    return redirect(url_for("index"))
+def new_drive(c, f, name, short):
+    """Nuovo container iCloud Drive (mandarons/icloud-drive): cartelle, config.yaml, template Unraid, container. Primo login manuale."""
+    apple = f["apple_id"].strip(); chat = f.get("chat_id", "").strip(); label = f.get("label", name).strip() or name
+    dest_host = (f.get("drive_dest", "") or f"/mnt/user/documents/{label}/iCloud Drive").strip().rstrip("/")
+    if not name or not apple or name in c["users"]: flash("Dati mancanti o nome già usato"); return redirect(url_for("new"))
+    p = c["paths"]; d = c["defaults"]; cont = f"iclouddr-{short.lower()}"; host_appdata = f"/mnt/user/appdata/{cont}"
+    appdata = host_to_local(host_appdata); dest = host_to_local(dest_host)
+    if dest == dest_host: flash("La destinazione deve stare sotto /mnt/user/documents (montato nel dispatcher come /documents)"); return redirect(url_for("new"))
+    for path in (appdata, dest):
+        os.makedirs(path, exist_ok=True); shutil.chown(path, int(d["user_id"]), int(d["group_id"]))
+    open(os.path.join(appdata, "config.yaml"), "w").write(f"""# {cont} — iCloud Drive di {label} → {dest_host} (solo download, {d.get('drive_image', 'mandarons/icloud-drive')})
+app:
+  logger:
+    level: "info"
+    filename: "/config/icloud.log"
+  credentials:
+    username: "{apple}"
+    retry_login_interval: 600
+  root: "/icloud"
+  region: global
+  web_ui:
+    enabled: true
+    host: "0.0.0.0"
+    port: 8080
+drive:
+  destination: "drive"
+  remove_obsolete: false
+  sync_interval: {d.get('drive_sync_interval', 1800)}
+"""); shutil.chown(os.path.join(appdata, "config.yaml"), int(d["user_id"]), int(d["group_id"]))
+    # porta web: la prima libera da 8788 fra quelle dei container drive esistenti
+    used = set()
+    for u in c["users"].values():
+        i = inspect(u["container"]) if utype(u) == "iclouddrive" else None
+        if i:
+            for b in (i.get("HostConfig", {}).get("PortBindings", {}).get("8080/tcp") or []): used.add(int(b.get("HostPort", 0) or 0))
+    port = 8788
+    while port in used: port += 1
+    icon = "https://cdn.jsdelivr.net/gh/walkxcode/dashboard-icons/png/icloud.png"
+    open(tpl_path(cont), "w").write(f"""<?xml version="1.0"?>
+<Container version="2">
+  <Name>{cont}</Name>
+  <Repository>{d.get('drive_image', 'mandarons/icloud-drive')}</Repository>
+  <Registry>https://hub.docker.com/r/mandarons/icloud-drive</Registry>
+  <Network>bridge</Network>
+  <Shell>sh</Shell>
+  <Privileged>false</Privileged>
+  <Support>https://github.com/mandarons/icloud-docker</Support>
+  <Project>https://github.com/mandarons/icloud-docker</Project>
+  <Overview>Scarica iCloud Drive di {html.escape(label)} in {html.escape(dest_host)} (solo download). Primo login: docker exec -it {cont} /bin/sh -c "su-exec abc icloud --username={apple} --session-directory=/config/session_data"</Overview>
+  <Category>Backup: Cloud:</Category>
+  <WebUI>http://[IP]:[PORT:8080]/</WebUI>
+  <Icon>{icon}</Icon>
+  <ExtraParams>--label net.unraid.docker.managed=dockerman</ExtraParams>
+  <Config Name="Web UI" Target="8080" Default="{port}" Mode="tcp" Description="Stato della sincronizzazione (solo LAN)" Type="Port" Display="always" Required="false" Mask="false">{port}</Config>
+  <Config Name="Config" Target="/config" Default="{host_appdata}" Mode="rw" Description="config.yaml, sessione 2FA, log" Type="Path" Display="always" Required="true" Mask="false">{host_appdata}</Config>
+  <Config Name="iCloud Drive" Target="/icloud/drive" Default="{html.escape(dest_host)}" Mode="rw" Description="Destinazione dei file" Type="Path" Display="always" Required="true" Mask="false">{html.escape(dest_host)}</Config>
+  <Config Name="Config file" Target="ENV_CONFIG_FILE_PATH" Default="/config/config.yaml" Mode="" Description="Senza questa variabile l'app legge /app/config.yaml" Type="Variable" Display="advanced" Required="true" Mask="false">/config/config.yaml</Config>
+  <Config Name="PUID" Target="PUID" Default="99" Mode="" Description="" Type="Variable" Display="advanced" Required="false" Mask="false">{d["user_id"]}</Config>
+  <Config Name="PGID" Target="PGID" Default="100" Mode="" Description="" Type="Variable" Display="advanced" Required="false" Mask="false">{d["group_id"]}</Config>
+  <Config Name="TZ" Target="TZ" Default="Europe/Rome" Mode="" Description="" Type="Variable" Display="advanced" Required="false" Mask="false">{d["tz"]}</Config>
+</Container>
+""")
+    rc, out, err = sh(f"docker run -d --name {cont} --restart unless-stopped --label net.unraid.docker.managed=dockerman -p {port}:8080 -e PUID={d['user_id']} -e PGID={d['group_id']} -e TZ={d['tz']} -e ENV_CONFIG_FILE_PATH=/config/config.yaml -v {host_appdata}:/config -v {json.dumps(dest_host)}:/icloud/drive {d.get('drive_image', 'mandarons/icloud-drive')}", 180)
+    if rc != 0: flash(f"docker run fallito: {err[-300:]}"); return redirect(url_for("new"))
+    c["users"][name] = {"type": "iclouddrive", "container": cont, "label": label, "chat_id": chat, "apple_id": apple}; c["aliases"][short.lower() + "-drive"] = name; save(c)
+    flash(f"{cont} creato (web UI porta {port}). Primo login Apple dal terminale di Unraid: docker exec -it {cont} /bin/sh -c \"su-exec abc icloud --username={apple} --session-directory=/config/session_data\" — password, codice, y al keyring. Poi #{name} auth / #{name} 123456 funzionano dal bot.")
     return redirect(url_for("index"))
 @app.route("/healthz")
 def healthz(): return "ok"

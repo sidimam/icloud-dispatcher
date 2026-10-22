@@ -1,12 +1,13 @@
 {
   "users": {
-    "famiglia":  {"container": "iCloudpd-Family",      "label": "Famiglia (Shared Library)", "chat_id": ""},
-    "simone":    {"container": "iCloudpd-sdimambro",   "label": "Simone",  "chat_id": ""},
-    "daniela":   {"container": "iCloudpd-dmanieri",    "label": "Daniela", "chat_id": ""},
-    "sofia":     {"container": "iCloudpd-sofdimambro", "label": "Sofia",   "chat_id": ""},
-    "maria":     {"container": "iCloudpd-mdimambro",   "label": "Maria",   "chat_id": ""}
+    "famiglia":     {"type": "icloudpd",    "container": "iCloudpd-Family",      "label": "Famiglia (Shared Library)", "chat_id": ""},
+    "simone":       {"type": "icloudpd",    "container": "iCloudpd-sdimambro",   "label": "Simone",  "chat_id": ""},
+    "daniela":      {"type": "icloudpd",    "container": "iCloudpd-dmanieri",    "label": "Daniela", "chat_id": ""},
+    "sofia":        {"type": "icloudpd",    "container": "iCloudpd-sofdimambro", "label": "Sofia",   "chat_id": ""},
+    "maria":        {"type": "icloudpd",    "container": "iCloudpd-mdimambro",   "label": "Maria",   "chat_id": ""},
+    "simone-drive": {"type": "iclouddrive", "container": "iclouddr-sdimambro",   "label": "iCloud Drive di Simone", "chat_id": "", "apple_id": "simone.dimambro@me.com", "person": "simone"}
   },
-  "aliases": {"family": "famiglia", "sdimambro": "simone", "dmanieri": "daniela", "sofdimambro": "sofia", "mdimambro": "maria"},
-  "paths": {"appdata": "/appdata", "photos": "/photos", "templates": "/templates"},
-  "defaults": {"image": "boredazfcuk/icloudpd", "tz": "Europe/Rome", "folder_structure": "{:%Y/%m}", "user": "nobody", "user_id": "99", "group": "users", "group_id": "100", "notification_days": "3"}
+  "aliases": {"family": "famiglia", "sdimambro": "simone", "dmanieri": "daniela", "sofdimambro": "sofia", "mdimambro": "maria", "drive-sdimambro": "simone-drive", "sdimambro-drive": "simone-drive"},
+  "paths": {"appdata": "/appdata", "photos": "/photos", "templates": "/templates", "documents": "/documents"},
+  "defaults": {"image": "boredazfcuk/icloudpd", "drive_image": "mandarons/icloud-drive", "drive_session_days": 30, "drive_sync_interval": 1800, "tz": "Europe/Rome", "folder_structure": "{:%Y/%m}", "user": "nobody", "user_id": "99", "group": "users", "group_id": "100", "notification_days": "3"}
 }

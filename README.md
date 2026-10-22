@@ -1,7 +1,13 @@
-# iCloudpd-dispatcher
+# icloud-dispatcher
 
-Rinnovo del cookie 2FA Apple dei container [boredazfcuk/icloudpd](https://github.com/boredazfcuk/docker-icloudpd) **con un solo bot Telegram**,
-condiviso fra più container e con il resto della casa.
+Rinnovo della sessione 2FA Apple dei container iCloud di Unraid **con un solo bot Telegram**, condiviso fra più container e con il
+resto della casa. Gestisce due famiglie di container:
+
+- **📷 foto** — [boredazfcuk/icloudpd](https://github.com/boredazfcuk/docker-icloudpd) (uno per Apple ID, libreria personale o condivisa);
+- **📁 iCloud Drive** — [mandarons/icloud-drive](https://github.com/mandarons/icloud-docker) (uno per Apple ID, solo download).
+
+> Fino al 22 ottobre 2026 il progetto si chiamava *iCloudpd-dispatcher* e gestiva solo le foto. GitHub reindirizza il vecchio nome;
+> l'immagine è ora `ghcr.io/sidimam/icloud-dispatcher`, il container `icloud-dispatcher`, l'appdata `/mnt/user/appdata/icloud-dispatcher`.
 
 ## Il problema
 
@@ -11,14 +17,16 @@ Il cookie di autenticazione Apple dura circa 30 giorni. L'immagine icloudpd sa g
 
 ## La soluzione
 
-Un piccolo container, `iCloudpd-dispatcher`, è l'unico a leggere il bot. Riconosce il prefisso `#nome` e consegna il comando
+Un piccolo container, `icloud-dispatcher`, è l'unico a leggere il bot. Riconosce il prefisso `#nome` e consegna il comando
 al container giusto tramite il socket Docker:
 
 | Messaggio in chat        | Effetto                                                                                  |
 |--------------------------|------------------------------------------------------------------------------------------|
 | `#sofia auth`            | cancella cookie+sessione di `iCloudpd-sofdimambro` e avvia `/opt/authenticate.exp` (password dal portachiavi del container); Apple invia il codice ai dispositivi dell'account |
 | `#sofia 123456`          | scrive il codice in `/tmp/icloudpd/expect_input.txt` del container (expect lo attende 10 minuti) e conferma l'esito |
-| `#stato`                 | giorni rimanenti del cookie di ogni container                                            |
+| `#drive-sdimambro auth`  | per un container iCloud Drive: lancia `icloud --username … --session-directory=/config/session_data` nel container (password dal keyring, salvato al primo login manuale); Apple invia il codice |
+| `#drive-sdimambro 123456`| scrive il codice nella FIFO `/tmp/2fa.fifo` da cui `icloud` legge; se il login riesce (`EXIT=0` in `/tmp/2fa.log`) il container viene riavviato e riprende a scaricare |
+| `#stato`                 | giorni rimanenti della sessione Apple di ogni container (foto: `DAYS_REMAINING`; Drive: 30 giorni dall'età del file di sessione) |
 | `#aiuto`                 | elenco comandi                                                                           |
 
 I container iCloudpd restano con `telegram_polling=false` e usano il bot solo per **inviare**: le loro notifiche operative (avvio, download,
@@ -26,17 +34,20 @@ I container iCloudpd restano con `telegram_polling=false` e usano il bot solo pe
 e `user=<nome>` così i messaggi dicono di chi si tratta. I messaggi del flusso 2FA (promemoria a 3 e 2 giorni, avvio a 1 giorno, conferme del
 dispatcher) vanno invece nel **gruppo** di famiglia, dove tutti rispondono con `#nome 123456`.
 
-Lo script `unraid/icloudpd_2fa_autostart.sh` (User Scripts, ogni giorno) completa il flusso: a **1 giorno** dalla scadenza avvisa
+Lo script `unraid/icloud_2fa_autostart.sh` (User Scripts, ogni giorno; riconosce i container dall'immagine e i nomi da `config.json`) completa il flusso: a **1 giorno** dalla scadenza avvisa
 nella chat e avvia da solo la riautenticazione, così all'utente resta solo da rispondere `#nome 123456`.
 
 ## Interfaccia web (porta 8787)
 
-La GUI (Flask, nello stesso container) mostra un riquadro per utente: stato del container, giorni al rinnovo del cookie, Apple ID,
+La GUI (Flask, nello stesso container) mostra una colonna per persona — la scheda 📁 iCloud Drive sotto quella 📷 delle foto dello stesso Apple ID (o del `person` indicato in `config.json`) — e un riquadro per container: stato del container, giorni al rinnovo del cookie, Apple ID,
 cosa scarica (libreria PrimarySync o SharedSync-…, album), cartella, chat Telegram, ultimo evento. Azioni: **Riautentica**,
 **Invia codice** (alternativa a Telegram), **Scarica ora** (riavvio), **Impostazioni** (libreria, album, struttura cartelle, chat,
 giorni di promemoria: aggiorna `/config/icloudpd.conf`, il template Unraid e riavvia), **Rimuovi dalla GUI**. **Nuovo utente** crea cartelle,
-template Unraid e container copiando le impostazioni da uno esistente; resta da fare il primo login Apple con `--Initialise`.
-Utenti e alias stanno in `/app/config.json`, condiviso con il bot. La GUI non ha autenticazione: tenerla in LAN o dietro un proxy.
+template Unraid e container: per le foto copiando le impostazioni da un container esistente (poi `--Initialise`), per iCloud Drive scrivendo
+`config.yaml` (destinazione sotto `/mnt/user/documents`, controllo ogni 30 minuti, web UI su una porta libera da 8788) e la variabile
+`ENV_CONFIG_FILE_PATH=/config/config.yaml` senza la quale l'immagine legge un config vuoto; poi il primo login manuale
+`docker exec -it iclouddr-<nome> /bin/sh -c "su-exec abc icloud --username=<apple id> --session-directory=/config/session_data"` (password, codice, `y` al keyring).
+Utenti e alias stanno in `/app/config.json`, condiviso con il bot; ogni utente ha `type` (`icloudpd` o `iclouddrive`), `container`, `label`, `chat_id` e, per iCloud Drive, `apple_id` e `person`. La GUI non ha autenticazione: tenerla in LAN o dietro un proxy.
 
 ## Installazione (Unraid)
 
