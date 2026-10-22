@@ -104,7 +104,7 @@ def drive_view(name, u):
         rc, last, _ = sh(f"docker logs --since 72h {c} 2>&1 | grep -E 'Downloading|completed|2FA|Retrying login|Syncing drive' | tail -1", 30); v["last"] = re.sub(r"^.*?:: (INFO|WARNING|ERROR) :: \S+ :: \S+ :: \d+ :: ", "", last)[:140]
     return v
 def photos_view(name, u):
-    c = u["container"]; info = inspect(c); v = {"name": name, "label": u.get("label", name), "container": c, "chat_id": u.get("chat_id", ""), "exists": info is not None}
+    c = u["container"]; info = inspect(c); v = {"name": name, "type": "icloudpd", "label": u.get("label", name), "container": c, "chat_id": u.get("chat_id", ""), "exists": info is not None}
     if not info: return v
     e = env_of(info); conf = read_conf(conf_path(info) or "") ; g = lambda k, d="": conf.get(k) or e.get(k) or d
     v.update(apple_id=g("apple_id"), photo_library=g("photo_library", "PrimarySync"), photo_album=g("photo_album"), folder_structure=g("folder_structure"),
