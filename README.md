@@ -21,8 +21,10 @@ al container giusto tramite il socket Docker:
 | `#stato`                 | giorni rimanenti del cookie di ogni container                                            |
 | `#aiuto`                 | elenco comandi                                                                           |
 
-I container iCloudpd restano con `telegram_polling=false` e usano il bot solo per **inviare** i promemoria
-(`notification_type=telegram`, `telegram_token`, `telegram_chat_id`, `notification_days=3`).
+I container iCloudpd restano con `telegram_polling=false` e usano il bot solo per **inviare**: le loro notifiche operative (avvio, download,
+«MFA re-confirmed») vanno nella chat privata dell'amministratore (`telegram_chat_id`), con titolo leggibile `notification_title=iCloud Foto di <nome>`
+e `user=<nome>` così i messaggi dicono di chi si tratta. I messaggi del flusso 2FA (promemoria a 3 e 2 giorni, avvio a 1 giorno, conferme del
+dispatcher) vanno invece nel **gruppo** di famiglia, dove tutti rispondono con `#nome 123456`.
 
 Lo script `unraid/icloudpd_2fa_autostart.sh` (User Scripts, ogni giorno) completa il flusso: a **1 giorno** dalla scadenza avvisa
 nella chat e avvia da solo la riautenticazione, così all'utente resta solo da rispondere `#nome 123456`.
