@@ -26,9 +26,9 @@ while true; do
   OFFSET=$(( $(cat "$OFF") + 1 ))
   R=$(curl -s --max-time 70 "$API/getUpdates" -d offset="$OFFSET" -d timeout=50 -d allowed_updates='["message"]') || { sleep 5; continue; }
   echo "$R" | jq -e '.ok' >/dev/null 2>&1 || { log "risposta non valida: ${R:0:120}"; sleep 10; continue; }
-  while IFS=$'\t' read -r UID CHAT TEXT FROM; do
-    [ -z "$UID" ] && continue
-    echo "$UID" > "$OFF"
+  while IFS=$'\t' read -r UPD CHAT TEXT FROM; do
+    [ -z "$UPD" ] && continue
+    echo "$UPD" > "$OFF"
     allowed "$CHAT" || { log "ignoro chat $CHAT ($FROM): $TEXT"; continue; }
     T=$(echo "$TEXT" | tr 'A-Z' 'a-z' | sed -E 's/^\s+|\s+$//g')
     case "$T" in
