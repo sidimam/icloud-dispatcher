@@ -44,7 +44,7 @@ cosa scarica (libreria PrimarySync o SharedSync-…, album), cartella, chat Tele
 **Invia codice** (alternativa a Telegram), **Scarica ora** (riavvio), **Impostazioni** (libreria, album, struttura cartelle, chat,
 giorni di promemoria: aggiorna `/config/icloudpd.conf`, il template Unraid e riavvia), **Rimuovi dalla GUI**. **Nuovo utente** crea cartelle,
 template Unraid e container: per le foto copiando le impostazioni da un container esistente (poi `--Initialise`), per iCloud Drive scrivendo
-`config.yaml` (destinazione sotto `/mnt/user/documents`, controllo ogni 30 minuti, web UI su una porta libera da 8788) e la variabile
+`config.yaml` (destinazione sotto `/mnt/user/documents`, controllo ogni 30 minuti, nessuna porta pubblicata: lo stato si legge qui) e la variabile
 `ENV_CONFIG_FILE_PATH=/config/config.yaml` senza la quale l'immagine legge un config vuoto; poi il primo login manuale
 `docker exec -it iclouddr-<nome> /bin/sh -c "su-exec abc icloud --username=<apple id> --session-directory=/config/session_data"` (password, codice, `y` al keyring).
 Utenti e alias stanno in `/app/config.json`, condiviso con il bot; ogni utente ha `type` (`icloudpd` o `iclouddrive`), `container`, `label`, `chat_id` e, per iCloud Drive, `apple_id` e `person`. La GUI non ha autenticazione: tenerla in LAN o dietro un proxy.

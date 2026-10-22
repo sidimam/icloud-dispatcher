@@ -215,23 +215,11 @@ app:
     retry_login_interval: 600
   root: "/icloud"
   region: global
-  web_ui:
-    enabled: true
-    host: "0.0.0.0"
-    port: 8080
 drive:
   destination: "drive"
   remove_obsolete: false
   sync_interval: {d.get('drive_sync_interval', 1800)}
 """); shutil.chown(os.path.join(appdata, "config.yaml"), int(d["user_id"]), int(d["group_id"]))
-    # porta web: la prima libera da 8788 fra quelle dei container drive esistenti
-    used = set()
-    for u in c["users"].values():
-        i = inspect(u["container"]) if utype(u) == "iclouddrive" else None
-        if i:
-            for b in (i.get("HostConfig", {}).get("PortBindings", {}).get("8080/tcp") or []): used.add(int(b.get("HostPort", 0) or 0))
-    port = 8788
-    while port in used: port += 1
     icon = "https://cdn.jsdelivr.net/gh/walkxcode/dashboard-icons/png/icloud.png"
     open(tpl_path(cont), "w").write(f"""<?xml version="1.0"?>
 <Container version="2">
@@ -245,10 +233,9 @@ drive:
   <Project>https://github.com/mandarons/icloud-docker</Project>
   <Overview>Scarica iCloud Drive di {html.escape(label)} in {html.escape(dest_host)} (solo download). Primo login: docker exec -it {cont} /bin/sh -c "su-exec abc icloud --username={apple} --session-directory=/config/session_data"</Overview>
   <Category>Backup: Cloud:</Category>
-  <WebUI>http://[IP]:[PORT:8080]/</WebUI>
+  <WebUI/>
   <Icon>{icon}</Icon>
   <ExtraParams>--label net.unraid.docker.managed=dockerman</ExtraParams>
-  <Config Name="Web UI" Target="8080" Default="{port}" Mode="tcp" Description="Stato della sincronizzazione (solo LAN)" Type="Port" Display="always" Required="false" Mask="false">{port}</Config>
   <Config Name="Config" Target="/config" Default="{host_appdata}" Mode="rw" Description="config.yaml, sessione 2FA, log" Type="Path" Display="always" Required="true" Mask="false">{host_appdata}</Config>
   <Config Name="iCloud Drive" Target="/icloud/drive" Default="{html.escape(dest_host)}" Mode="rw" Description="Destinazione dei file" Type="Path" Display="always" Required="true" Mask="false">{html.escape(dest_host)}</Config>
   <Config Name="Config file" Target="ENV_CONFIG_FILE_PATH" Default="/config/config.yaml" Mode="" Description="Senza questa variabile l'app legge /app/config.yaml" Type="Variable" Display="advanced" Required="true" Mask="false">/config/config.yaml</Config>
@@ -257,10 +244,10 @@ drive:
   <Config Name="TZ" Target="TZ" Default="Europe/Rome" Mode="" Description="" Type="Variable" Display="advanced" Required="false" Mask="false">{d["tz"]}</Config>
 </Container>
 """)
-    rc, out, err = sh(f"docker run -d --name {cont} --restart unless-stopped --label net.unraid.docker.managed=dockerman -p {port}:8080 -e PUID={d['user_id']} -e PGID={d['group_id']} -e TZ={d['tz']} -e ENV_CONFIG_FILE_PATH=/config/config.yaml -v {host_appdata}:/config -v {json.dumps(dest_host)}:/icloud/drive {d.get('drive_image', 'mandarons/icloud-drive')}", 180)
+    rc, out, err = sh(f"docker run -d --name {cont} --restart unless-stopped --label net.unraid.docker.managed=dockerman -e PUID={d['user_id']} -e PGID={d['group_id']} -e TZ={d['tz']} -e ENV_CONFIG_FILE_PATH=/config/config.yaml -v {host_appdata}:/config -v {json.dumps(dest_host)}:/icloud/drive {d.get('drive_image', 'mandarons/icloud-drive')}", 180)
     if rc != 0: flash(f"docker run fallito: {err[-300:]}"); return redirect(url_for("new"))
     c["users"][name] = {"type": "iclouddrive", "container": cont, "label": label, "chat_id": chat, "apple_id": apple}; c["aliases"][short.lower() + "-drive"] = name; save(c)
-    flash(f"{cont} creato (web UI porta {port}). Primo login Apple dal terminale di Unraid: docker exec -it {cont} /bin/sh -c \"su-exec abc icloud --username={apple} --session-directory=/config/session_data\" — password, codice, y al keyring. Poi #{name} auth / #{name} 123456 funzionano dal bot.")
+    flash(f"{cont} creato. Primo login Apple dal terminale di Unraid: docker exec -it {cont} /bin/sh -c \"su-exec abc icloud --username={apple} --session-directory=/config/session_data\" — password, codice, y al keyring. Poi #{name} auth / #{name} 123456 funzionano dal bot.")
     return redirect(url_for("index"))
 @app.route("/healthz")
 def healthz(): return "ok"
