@@ -1,0 +1,21 @@
+{% extends "base.html" %}{% block body %}
+<p class="mut">Un utente = un container icloudpd. I comandi Telegram usano il prefisso <code>#nome</code>; il codice Apple arriva sui dispositivi dell'account e si inserisce qui o in chat.</p>
+<div class="grid">{% for u in users %}<div class="card">
+<h2>{{u.label}} <span class="mut">#{{u.name}}</span></h2><div class="mut">{{u.container}}</div>
+{% if not u.exists %}<p class="bad">Container non trovato.</p>{% else %}
+<div class="row">{% if u.running %}<span class="pill ok">in esecuzione{% if u.health %} · {{u.health}}{% endif %}</span>{% else %}<span class="pill bad">fermo</span>{% endif %}
+{% if u.days %}<span class="pill {% if u.days|int <= 3 %}warn{% else %}ok{% endif %}">cookie: {{u.days}} giorni</span>{% endif %}{% if u.auth %}<span class="pill warn">autenticazione in corso</span>{% endif %}</div>
+<dl><dt>Apple ID</dt><dd>{{u.apple_id}}</dd><dt>Scarica</dt><dd>{{u.photo_library}}{% if u.photo_album %} · album: {{u.photo_album}}{% endif %}</dd><dt>Cartella</dt><dd>{{u.photos_host}}</dd><dt>Telegram</dt><dd>chat {{u.tg_chat or '—'}}</dd><dt>Ultimo evento</dt><dd>{{u.last or '—'}}</dd></dl>
+<div class="row"><form class="inline" method="post" action="/u/{{u.name}}/auth" onsubmit="return confirm('Invalida il cookie attuale e chiede un nuovo codice Apple. Continuare?')"><button>Riautentica</button></form>
+<form class="inline" method="post" action="/u/{{u.name}}/code"><input name="code" placeholder="codice a 6 cifre" style="width:11em;display:inline" inputmode="numeric" pattern="[0-9]{6}"> <button class="sec">Invia codice</button></form>
+<form class="inline" method="post" action="/u/{{u.name}}/restart"><button class="sec">Scarica ora</button></form></div>
+<details><summary>Impostazioni</summary><form method="post" action="/u/{{u.name}}/settings">
+<label>Etichetta</label><input name="label" value="{{u.label}}">
+<label>Libreria (PrimarySync = personale, oppure l'id SharedSync-…)</label><input name="photo_library" value="{{u.photo_library}}">
+<label>Solo album (vuoto = tutto)</label><input name="photo_album" value="{{u.photo_album}}">
+<label>Struttura cartelle</label><input name="folder_structure" value="{{u.folder_structure}}">
+<label>Chat Telegram (id) per avvisi e comandi</label><input name="telegram_chat_id" value="{{u.tg_chat}}">
+<label>Promemoria da N giorni prima</label><input name="notification_days" value="{{u.notification_days}}">
+<div class="row"><button>Salva e riavvia</button></div></form>
+<form method="post" action="/u/{{u.name}}/delete" onsubmit="return confirm('Toglie l\'utente dalla GUI e dal bot; il container resta. Continuare?')"><div class="row"><button class="danger">Rimuovi dalla GUI</button></div></form></details>
+{% endif %}</div>{% endfor %}</div>{% endblock %}

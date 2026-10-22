@@ -10,8 +10,13 @@
 set -u
 API="https://api.telegram.org/bot${TELEGRAM_TOKEN}"
 STATE=/app/state; mkdir -p "$STATE"; OFF="$STATE/offset"; [ -f "$OFF" ] || echo 0 > "$OFF"
-declare -A C=([famiglia]=iCloudpd-Family [family]=iCloudpd-Family [simone]=iCloudpd-sdimambro [sdimambro]=iCloudpd-sdimambro [daniela]=iCloudpd-dmanieri [dmanieri]=iCloudpd-dmanieri [sofia]=iCloudpd-sofdimambro [sofdimambro]=iCloudpd-sofdimambro [maria]=iCloudpd-mdimambro [mdimambro]=iCloudpd-mdimambro)
-NAMES="famiglia simone daniela sofia maria"  # nomi mostrati; accettati anche i nomi dei container (sdimambro, dmanieri, …)
+CFG="${APP_DIR:-/app}/config.json"   # condiviso con la GUI: utenti, container, alias
+declare -A C
+load_cfg(){ C=()
+  while IFS=$'	' read -r n c; do [ -n "$n" ] && C[$n]=$c; done < <(jq -r '.users|to_entries[]|[.key,.value.container]|@tsv' "$CFG" 2>/dev/null)
+  while IFS=$'	' read -r a n; do [ -n "$a" ] && [ -n "${C[$n]:-}" ] && C[$a]=${C[$n]}; done < <(jq -r '.aliases|to_entries[]|[.key,.value]|@tsv' "$CFG" 2>/dev/null)
+  NAMES=$(jq -r '.users|keys|join(" ")' "$CFG" 2>/dev/null); }
+load_cfg
 log(){ echo "$(date '+%F %T') $*"; }
 say(){ curl -s -X POST "$API/sendMessage" -d chat_id="$1" --data-urlencode text="$2" >/dev/null; }
 allowed(){ case ",${ALLOWED_CHATS}," in *",$1,"*) return 0;; *) return 1;; esac; }
@@ -22,13 +27,14 @@ start_auth(){ # $1 container
   docker exec "$1" sh -c "rm -f /config/${ck} /config/${ck}.session; mkdir -p /tmp/icloudpd; : > /tmp/icloudpd/expect_input.txt; chmod 666 /tmp/icloudpd/expect_input.txt; nohup /usr/bin/expect /opt/authenticate.exp >/tmp/icloudpd/reauth.log 2>&1 &"
 }
 days_of(){ docker exec "$1" cat /config/DAYS_REMAINING 2>/dev/null | tr -dc '0-9-'; }
-log "avvio; chat ammesse: ${ALLOWED_CHATS}; container: ${!C[*]}"
+log "avvio; chat ammesse: ${ALLOWED_CHATS}; utenti: ${NAMES}"
 while true; do
   OFFSET=$(( $(cat "$OFF") + 1 ))
   R=$(curl -s --max-time 70 "$API/getUpdates" -d offset="$OFFSET" -d timeout=50 -d allowed_updates='["message"]') || { sleep 5; continue; }
   echo "$R" | jq -e '.ok' >/dev/null 2>&1 || { log "risposta non valida: ${R:0:120}"; sleep 10; continue; }
   while IFS=$'\t' read -r UPD CHAT TEXT FROM; do
     [ -z "$UPD" ] && continue
+    load_cfg
     echo "$UPD" > "$OFF"
     allowed "$CHAT" || { log "ignoro chat $CHAT ($FROM): $TEXT"; continue; }
     T=$(echo "$TEXT" | tr 'A-Z' 'a-z' | sed -E 's/^\s+|\s+$//g')

@@ -1,0 +1,17 @@
+<!doctype html><html lang="it"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>iCloudpd dispatcher</title>
+<style>
+:root{--bg:#f6f7f9;--card:#fff;--fg:#1d1d1f;--mut:#6e6e73;--acc:#0a84ff;--ok:#30a14e;--warn:#d97706;--bad:#d1242f;--bd:#e5e5ea}
+@media(prefers-color-scheme:dark){:root{--bg:#111;--card:#1c1c1e;--fg:#f2f2f7;--mut:#98989d;--bd:#3a3a3c}}
+body{margin:0;font-family:-apple-system,BlinkMacSystemFont,system-ui,sans-serif;background:var(--bg);color:var(--fg)}
+header{display:flex;justify-content:space-between;align-items:center;padding:1rem 1.25rem;border-bottom:1px solid var(--bd)}
+header h1{font-size:1.15rem;margin:0}a{color:var(--acc);text-decoration:none}main{padding:1rem 1.25rem;max-width:1200px;margin:auto}
+.flash{background:#fff7d6;color:#3b2f00;border:1px solid #f1d27a;border-radius:8px;padding:.6rem .9rem;margin-bottom:1rem}
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(340px,1fr));gap:1rem}
+.card{background:var(--card);border:1px solid var(--bd);border-radius:12px;padding:1rem}
+.card h2{margin:0 0 .25rem;font-size:1.05rem}.mut{color:var(--mut);font-size:.9rem}dl{display:grid;grid-template-columns:auto 1fr;gap:.2rem .8rem;margin:.75rem 0;font-size:.92rem}dt{color:var(--mut)}dd{margin:0;word-break:break-all}
+.pill{display:inline-block;padding:.1rem .55rem;border-radius:999px;font-size:.8rem;border:1px solid var(--bd)}.ok{color:var(--ok)}.warn{color:var(--warn)}.bad{color:var(--bad)}
+form.inline{display:inline}button,input,select{font:inherit}button{background:var(--acc);color:#fff;border:0;border-radius:8px;padding:.4rem .75rem;cursor:pointer}button.sec{background:transparent;color:var(--acc);border:1px solid var(--acc)}button.danger{background:transparent;color:var(--bad);border:1px solid var(--bad)}
+input,select{width:100%;box-sizing:border-box;padding:.4rem .5rem;border:1px solid var(--bd);border-radius:8px;background:var(--bg);color:var(--fg)}label{display:block;font-size:.85rem;color:var(--mut);margin:.5rem 0 .15rem}
+details{margin-top:.6rem}summary{cursor:pointer;color:var(--acc)}.row{display:flex;gap:.5rem;flex-wrap:wrap;align-items:center;margin-top:.6rem}
+</style></head><body><header><h1>iCloudpd dispatcher</h1><nav><a href="/">Utenti</a> · <a href="/new">Nuovo utente</a></nav></header><main>
+{% with m=get_flashed_messages() %}{% for x in m %}<div class="flash">{{x}}</div>{% endfor %}{% endwith %}{% block body %}{% endblock %}</main></body></html>

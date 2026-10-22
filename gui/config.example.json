@@ -1,0 +1,12 @@
+{
+  "users": {
+    "famiglia":  {"container": "iCloudpd-Family",      "label": "Famiglia (Shared Library)", "chat_id": ""},
+    "simone":    {"container": "iCloudpd-sdimambro",   "label": "Simone",  "chat_id": ""},
+    "daniela":   {"container": "iCloudpd-dmanieri",    "label": "Daniela", "chat_id": ""},
+    "sofia":     {"container": "iCloudpd-sofdimambro", "label": "Sofia",   "chat_id": ""},
+    "maria":     {"container": "iCloudpd-mdimambro",   "label": "Maria",   "chat_id": ""}
+  },
+  "aliases": {"family": "famiglia", "sdimambro": "simone", "dmanieri": "daniela", "sofdimambro": "sofia", "mdimambro": "maria"},
+  "paths": {"appdata": "/appdata", "photos": "/photos", "templates": "/templates"},
+  "defaults": {"image": "boredazfcuk/icloudpd", "tz": "Europe/Rome", "folder_structure": "{:%Y/%m}", "user": "nobody", "user_id": "99", "group": "users", "group_id": "100", "notification_days": "3"}
+}

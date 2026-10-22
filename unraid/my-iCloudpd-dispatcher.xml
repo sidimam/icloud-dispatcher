@@ -1,7 +1,7 @@
 <?xml version="1.0"?>
 <Container version="2">
   <Name>iCloudpd-dispatcher</Name>
-  <Repository>docker:cli</Repository>
+  <Repository>icloudpd-dispatcher:local</Repository>
   <Registry>https://hub.docker.com/_/docker</Registry>
   <Network>bridge</Network>
   <MyIP/>
@@ -11,11 +11,11 @@
   <Project/>
   <Overview>Dispatcher Telegram per il rinnovo 2FA dei container iCloudpd: legge dal bot di casa i messaggi "#nome auth" e "#nome 123456" e li consegna al container giusto (scripts/unraid/icloudpd_2fa_bot.sh in RepoCasa).</Overview>
   <Category>Tools:</Category>
-  <WebUI/>
+  <WebUI>http://[IP]:[PORT:8787]/</WebUI>
   <TemplateURL/>
   <Icon>https://cdn-icons-png.magnific.com/512/7990/7990923.png</Icon>
-  <ExtraParams>--restart=unless-stopped --entrypoint /bin/sh</ExtraParams>
-  <PostArgs>-c "apk add --no-cache bash curl jq &gt;/dev/null 2&gt;&amp;1; exec bash /app/bot.sh"</PostArgs>
+  <ExtraParams>--restart=unless-stopped</ExtraParams>
+  <PostArgs></PostArgs>
   <CPUset/>
   <DateInstalled></DateInstalled>
   <DonateText/>
@@ -24,6 +24,10 @@
   <Config Name="Token bot Telegram" Target="TELEGRAM_TOKEN" Default="" Mode="" Description="stesso bot di casa (secrets/telegram.env)" Type="Variable" Display="always" Required="true" Mask="true"></Config>
   <Config Name="TZ" Target="TZ" Default="Europe/Rome" Mode="" Description="" Type="Variable" Display="advanced" Required="false" Mask="false">Europe/Rome</Config>
   <Config Name="Chat ammesse" Target="ALLOWED_CHATS" Default="" Mode="" Description="chat id separate da virgola: privata di Simone e gruppo famiglia" Type="Variable" Display="always" Required="true" Mask="false"></Config>
+  <Config Name="GUI" Target="8787" Default="8787" Mode="tcp" Description="interfaccia web" Type="Port" Display="always" Required="true" Mask="false">8787</Config>
+  <Config Name="Template Unraid" Target="/templates" Default="/boot/config/plugins/dockerMan/templates-user" Mode="rw" Description="template dei container (per creare/modificare utenti)" Type="Path" Display="advanced" Required="true" Mask="false">/boot/config/plugins/dockerMan/templates-user</Config>
+  <Config Name="appdata" Target="/appdata" Default="/mnt/user/appdata" Mode="rw" Description="config dei container icloudpd" Type="Path" Display="advanced" Required="true" Mask="false">/mnt/user/appdata</Config>
+  <Config Name="photos" Target="/photos" Default="/mnt/user/media/photos" Mode="rw" Description="cartelle foto" Type="Path" Display="advanced" Required="true" Mask="false">/mnt/user/media/photos</Config>
   <Config Name="Socket Docker" Target="/var/run/docker.sock" Default="/var/run/docker.sock" Mode="rw" Description="per docker exec nei container iCloudpd" Type="Path" Display="always" Required="true" Mask="false">/var/run/docker.sock</Config>
   <Config Name="App (bot.sh + stato)" Target="/app" Default="/mnt/user/appdata/icloudpd-dispatcher" Mode="rw" Description="" Type="Path" Display="always" Required="true" Mask="false">/mnt/user/appdata/icloudpd-dispatcher</Config>
 </Container>

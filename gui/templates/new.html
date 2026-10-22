@@ -1,0 +1,13 @@
+{% extends "base.html" %}{% block body %}<div class="card" style="max-width:640px">
+<h2>Nuovo utente iCloudpd</h2><p class="mut">Crea cartelle, template Unraid e container (copiando le impostazioni da un container esistente). Poi serve il primo login Apple con il codice 2FA.</p>
+<form method="post">
+<label>Prefisso Telegram (es. luca → #luca)</label><input name="name" required pattern="[a-z0-9]+">
+<label>Nome breve del container (es. ldimambro → iCloudpd-ldimambro, cartelle icloudpd-ldimambro e photos/ldimambro)</label><input name="short" required>
+<label>Etichetta</label><input name="label">
+<label>Apple ID (e-mail)</label><input name="apple_id" type="email" required>
+<label>Libreria</label><input name="photo_library" value="PrimarySync">
+<label>Solo album (vuoto = tutto)</label><input name="photo_album">
+<label>Struttura cartelle</label><input name="folder_structure" value="{{cfg.defaults.folder_structure}}">
+<label>Chat Telegram (id); vuoto = quella del container base</label><input name="chat_id">
+<label>Copia impostazioni da</label><select name="base">{% for b in bases %}<option>{{b}}</option>{% endfor %}</select>
+<div class="row"><button>Crea</button> <a href="/">Annulla</a></div></form></div>{% endblock %}
