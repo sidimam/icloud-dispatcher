@@ -5,7 +5,7 @@
     "daniela":      {"type": "icloudpd",    "container": "iCloudpd-dmanieri",    "label": "Daniela", "chat_id": ""},
     "sofia":        {"type": "icloudpd",    "container": "iCloudpd-sofdimambro", "label": "Sofia",   "chat_id": ""},
     "maria":        {"type": "icloudpd",    "container": "iCloudpd-mdimambro",   "label": "Maria",   "chat_id": ""},
-    "simone-drive": {"type": "iclouddrive", "container": "iclouddr-sdimambro",   "label": "iCloud Drive di Simone", "chat_id": "", "apple_id": "simone.dimambro@me.com", "person": "simone"}
+    "simone-drive": {"type": "iclouddrive", "container": "iclouddr-sdimambro",   "label": "Simone", "chat_id": "", "apple_id": "simone.dimambro@me.com", "person": "simone"}
   },
   "aliases": {"family": "famiglia", "sdimambro": "simone", "dmanieri": "daniela", "sofdimambro": "sofia", "mdimambro": "maria", "drive-sdimambro": "simone-drive", "sdimambro-drive": "simone-drive"},
   "paths": {"appdata": "/appdata", "photos": "/photos", "templates": "/templates", "documents": "/documents"},

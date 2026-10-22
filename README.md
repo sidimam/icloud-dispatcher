@@ -39,7 +39,7 @@ nella chat e avvia da solo la riautenticazione, così all'utente resta solo da r
 
 ## Interfaccia web (porta 8787)
 
-La GUI (Flask, nello stesso container) mostra una colonna per persona — la scheda 📁 iCloud Drive sotto quella 📷 delle foto dello stesso Apple ID (o del `person` indicato in `config.json`) — e un riquadro per container: stato del container, giorni al rinnovo del cookie, Apple ID,
+La GUI (Flask, nello stesso container) mostra due sezioni con intestazione — 📷 Foto iCloud (icloudpd) sopra, 📁 iCloud Drive sotto — e un riquadro per container: stato del container, giorni al rinnovo del cookie, Apple ID,
 cosa scarica (libreria PrimarySync o SharedSync-…, album), cartella, chat Telegram, ultimo evento. Azioni: **Riautentica**,
 **Invia codice** (alternativa a Telegram), **Scarica ora** (riavvio), **Impostazioni** (libreria, album, struttura cartelle, chat,
 giorni di promemoria: aggiorna `/config/icloudpd.conf`, il template Unraid e riavvia), **Rimuovi dalla GUI**. **Nuovo utente** crea cartelle,

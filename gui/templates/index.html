@@ -1,6 +1,6 @@
 {% extends "base.html" %}{% block body %}
 <p class="mut">Un utente = un container iCloud: 📷 foto (icloudpd) o 📁 iCloud Drive (mandarons/icloud-drive). I comandi Telegram usano il prefisso <code>#nome</code>; il codice Apple arriva sui dispositivi dell'account e si inserisce qui o in chat.</p>
-<div class="grid">{% for g in groups %}<div class="person">{% for u in g %}<div class="card">
+{% for title, group in sections %}<h2 class="section">{{title}}</h2><div class="grid">{% for u in group %}<div class="card">
 <h2>{% if u.type == "iclouddrive" %}📁{% else %}📷{% endif %} {{u.label}} <span class="mut">#{{u.name}}</span></h2><div class="mut">{{u.container}}</div>
 {% if not u.exists %}<p class="bad">Container non trovato.</p>{% else %}
 <div class="row">{% if u.running %}<span class="pill ok">in esecuzione{% if u.health %} · {{u.health}}{% endif %}</span>{% else %}<span class="pill bad">fermo</span>{% endif %}
@@ -23,4 +23,4 @@
 <label>Promemoria da N giorni prima</label><input name="notification_days" value="{{u.notification_days}}">{% endif %}
 <div class="row"><button>Salva e riavvia</button></div></form>
 <form method="post" action="/u/{{u.name}}/delete" onsubmit="return confirm('Toglie l\'utente dalla GUI e dal bot; il container resta. Continuare?')"><div class="row"><button class="danger">Rimuovi dalla GUI</button></div></form></details>
-{% endif %}</div>{% endfor %}</div>{% endfor %}</div>{% endblock %}
+{% endif %}</div>{% endfor %}</div>{% endfor %}{% endblock %}

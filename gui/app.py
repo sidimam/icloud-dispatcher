@@ -118,19 +118,10 @@ def photos_view(name, u):
 @app.route("/")
 def index():
     c = cfg(); users = [user_view(n, u) for n, u in c["users"].items()]
-    # Una colonna per persona: la scheda iCloud Drive sta sotto quella delle foto dello stesso Apple ID
-    # (o del nome indicato in config.json con "person": "simone").
-    groups, placed = [], set()
-    for v in users:
-        if v["type"] != "icloudpd" and (c["users"][v["name"]].get("person") or any(w["type"] == "icloudpd" and w.get("apple_id") and w.get("apple_id") == v.get("apple_id") for w in users)): continue
-        cards = [v]
-        for w in users:
-            if w["type"] == "iclouddrive" and w["name"] not in placed and (c["users"][w["name"]].get("person") == v["name"] or (w.get("apple_id") and w.get("apple_id") == v.get("apple_id"))):
-                cards.append(w); placed.add(w["name"])
-        groups.append(cards); placed.add(v["name"])
-    for v in users:
-        if v["name"] not in placed: groups.append([v]); placed.add(v["name"])
-    return render_template("index.html", groups=groups, cfg=c)
+    # Due sezioni per tipo: prima le foto (icloudpd), poi iCloud Drive; dentro ogni sezione l'ordine di config.json.
+    sections = [("📷 Foto iCloud (icloudpd)", [v for v in users if v["type"] == "icloudpd"]), ("📁 iCloud Drive (mandarons/icloud-drive)", [v for v in users if v["type"] == "iclouddrive"])]
+    sections = [sct for sct in sections if sct[1]]
+    return render_template("index.html", sections=sections, cfg=c)
 @app.post("/u/<name>/auth")
 def u_auth(name):
     c = cfg(); u = c["users"].get(name) or abort(404)
