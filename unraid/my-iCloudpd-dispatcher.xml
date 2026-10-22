@@ -13,7 +13,7 @@
   <Category>Tools:</Category>
   <WebUI/>
   <TemplateURL/>
-  <Icon>https://cdn.jsdelivr.net/gh/walkxcode/dashboard-icons/png/telegram.png</Icon>
+  <Icon>https://cdn-icons-png.magnific.com/512/7990/7990923.png</Icon>
   <ExtraParams>--restart=unless-stopped --entrypoint /bin/sh</ExtraParams>
   <PostArgs>-c "apk add --no-cache bash curl jq &gt;/dev/null 2&gt;&amp;1; exec bash /app/bot.sh"</PostArgs>
   <CPUset/>
