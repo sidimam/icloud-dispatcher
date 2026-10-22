@@ -1,4 +1,4 @@
-# iCloudpd-dispatcher: bot Telegram + GUI web. Costruire su Unraid: docker build -t icloudpd-dispatcher:local .
+# iCloudpd-dispatcher: bot Telegram + GUI web. Pubblicata da GitHub Actions su ghcr.io/sidimam/icloudpd-dispatcher.
 FROM docker:cli
 LABEL org.opencontainers.image.source="https://github.com/sidimam/icloudpd-dispatcher"
 RUN apk add --no-cache bash curl jq python3 py3-flask tzdata

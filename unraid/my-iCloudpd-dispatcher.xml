@@ -1,8 +1,8 @@
 <?xml version="1.0"?>
 <Container version="2">
   <Name>iCloudpd-dispatcher</Name>
-  <Repository>icloudpd-dispatcher:local</Repository>
-  <Registry>https://hub.docker.com/_/docker</Registry>
+  <Repository>ghcr.io/sidimam/icloudpd-dispatcher:latest</Repository>
+  <Registry>https://github.com/sidimam/icloudpd-dispatcher/pkgs/container/icloudpd-dispatcher</Registry>
   <Network>bridge</Network>
   <MyIP/>
   <Shell>sh</Shell>

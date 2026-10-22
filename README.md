@@ -41,7 +41,7 @@ Utenti e alias stanno in `/app/config.json`, condiviso con il bot. La GUI non ha
 1. Copia `bot.sh` in `/mnt/user/appdata/icloudpd-dispatcher/bot.sh`.
 2. Importa `unraid/my-iCloudpd-dispatcher.xml` in `/boot/config/plugins/dockerMan/templates-user/` e compila
    `TELEGRAM_TOKEN` e `ALLOWED_CHATS` (chat id separate da virgola: solo da queste chat vengono accettati i comandi).
-3. Costruisci l'immagine sull'host (`docker build -t icloudpd-dispatcher:local .`) e avvia il container con i mount del template:
+3. Immagine pronta: `ghcr.io/sidimam/icloudpd-dispatcher:latest` (amd64/arm64, costruita da GitHub Actions a ogni push su main). Avvia il container con i mount del template:
    socket Docker, `/app` (config e stato), `/templates` (template Unraid), `/appdata`, `/photos`; porta 8787 per la GUI.
 4. Adatta la mappa nome → container in `bot.sh` (`declare -A C=(...)`) e in `unraid/icloudpd_2fa_autostart.sh`.
 5. Nei container iCloudpd: `notification_type=telegram`, `telegram_token`, `telegram_chat_id`, `telegram_polling=false`,
