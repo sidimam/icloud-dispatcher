@@ -37,6 +37,10 @@ dispatcher) vanno invece nel **gruppo** di famiglia, dove tutti rispondono con `
 Lo script `unraid/icloud_2fa_autostart.sh` (User Scripts, ogni giorno; riconosce i container dall'immagine e i nomi da `config.json`) completa il flusso: a **1 giorno** dalla scadenza avvisa
 nella chat e avvia da solo la riautenticazione, così all'utente resta solo da rispondere `#nome 123456`.
 
+## Icona dei container iCloud Drive
+
+I container creati dalla GUI usano `assets/icloud-drive.png` (logo iCloud, 256×256 quadrato, ricavato da Wikimedia Commons), ospitata in questo repository: un'icona non quadrata viene deformata dal tab Docker di Unraid.
+
 ## Cartelle nel tab Docker di Unraid (facoltativo)
 
 Con il plugin [FolderView3](https://github.com/chodeus/folder.view3) i container iCloud si raggruppano nel tab Docker: una cartella «iCloud Foto» con regola per nome `^iCloudpd-` e una «iCloud Drive» con `^iclouddr-`. I container creati dalla GUI del dispatcher rispettano questi prefissi (`iCloudpd-<nome>`, `iclouddr-<nome>`), quindi entrano da soli nella cartella giusta.

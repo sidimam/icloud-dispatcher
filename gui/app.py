@@ -220,7 +220,7 @@ drive:
   remove_obsolete: false
   sync_interval: {d.get('drive_sync_interval', 1800)}
 """); shutil.chown(os.path.join(appdata, "config.yaml"), int(d["user_id"]), int(d["group_id"]))
-    icon = "https://cdn.jsdelivr.net/gh/walkxcode/dashboard-icons/png/icloud.png"
+    icon = "https://raw.githubusercontent.com/sidimam/icloud-dispatcher/main/assets/icloud-drive.png"   # quadrata 256x256 (l'icona dashboard-icons è 797x512 e Unraid la deforma)
     open(tpl_path(cont), "w").write(f"""<?xml version="1.0"?>
 <Container version="2">
   <Name>{cont}</Name>
