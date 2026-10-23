@@ -77,12 +77,17 @@ def yaml_set(path, key, value):
     if not done: lines.append(f"  {key}: {value}")
     open(path, "w").write("\n".join(lines) + "\n")
 def drive_days(local_config):
+    """Giorni alla scadenza del cookie di fiducia Apple (X-APPLE-WEBAUTH-HSA-TRUST, ~90 giorni, rinnovato dall'app finche' la sessione vive)."""
     d = os.path.join(local_config, "session_data")
-    try: files = [os.path.join(d, f) for f in os.listdir(d) if f.endswith(".session")]
+    try: files = [os.path.join(d, f) for f in os.listdir(d) if not f.endswith(".session")]
     except FileNotFoundError: return ""
-    if not files: return ""
-    age = time.time() - max(os.path.getmtime(f) for f in files)
-    return str(int((int(cfg()["defaults"].get("drive_session_days", 30)) * 86400 - age) // 86400))
+    for f in files:
+        for line in open(f, errors="ignore"):
+            m = re.match(r'Set-Cookie3: X-APPLE-WEBAUTH-HSA-TRUST=.*?expires="([^"]+)Z"', line)
+            if m:
+                exp = datetime.datetime.strptime(m.group(1), "%Y-%m-%d %H:%M:%S")
+                return str(int((exp - datetime.datetime.utcnow()).total_seconds() // 86400))
+    return ""
 def d_auth_running(c): return dexec(c, 'pgrep -f "icloud --username" >/dev/null')[0] == 0
 def d_start_auth(c, apple):
     dexec(c, f"rm -f /tmp/2fa.fifo /tmp/2fa.log; mkfifo -m 666 /tmp/2fa.fifo; nohup sh -c 'exec 3<>/tmp/2fa.fifo; su-exec abc icloud --username={apple} --session-directory=/config/session_data <&3 >/tmp/2fa.log 2>&1; echo EXIT=$? >>/tmp/2fa.log; rm -f /tmp/2fa.fifo' >/dev/null 2>&1 &")

@@ -3,11 +3,12 @@
 # quando la sessione Apple sta per scadere e il giorno prima avvia da solo la riautenticazione; l'utente risponde nel
 # gruppo con "#nome 123456" e il container icloud-dispatcher consegna il codice.
 #   • boredazfcuk/icloudpd  (foto):         giorni da /config/DAYS_REMAINING; riautenticazione = /opt/authenticate.exp
-#   • mandarons/icloud-drive (iCloud Drive): giorni = 30 - età del file di sessione; riautenticazione = `icloud --username …`
+#   • mandarons/icloud-drive (iCloud Drive): giorni = scadenza del cookie di fiducia X-APPLE-WEBAUTH-HSA-TRUST (~90 gg,
+#     l'app lo rinnova da sola finche' la sessione vive); riautenticazione = `icloud --username …`
 #     con il codice letto da una FIFO (/tmp/2fa.fifo), password dal keyring del container (primo login manuale)
 # Nomi utente da config.json del dispatcher (/mnt/user/appdata/icloud-dispatcher/config.json), chiave "container".
 STATE=/boot/config/plugins/user.scripts/icloud_2fa_state; mkdir -p "$STATE"
-CFG=/mnt/user/appdata/icloud-dispatcher/config.json; DRIVE_DAYS=30
+CFG=/mnt/user/appdata/icloud-dispatcher/config.json
 source /boot/config/secrets/telegram.env 2>/dev/null; GROUP=$(echo "${TELEGRAM_CHAT_ID_FAMIGLIA:-}" | tr -d '"'); TOKEN=${TELEGRAM_BOT_TOKEN:-}
 name_of(){ tr -d '\n' < "$CFG" | grep -o "\"[a-z0-9-]*\": *{[^}]*\"container\": *\"$1\"" | sed 's/^"\([^"]*\)".*/\1/' | head -1; }
 tg(){ curl -s -X POST "https://api.telegram.org/bot${TOKEN}/sendMessage" -d chat_id="$1" --data-urlencode text="$2" >/dev/null; }
@@ -22,7 +23,9 @@ for C in $(docker ps --format '{{.Names}}'); do
   else
     CONF=$(docker inspect "$C" --format '{{range .Mounts}}{{if eq .Destination "/config"}}{{.Source}}{{end}}{{end}}')
     APPLE=$(grep -m1 'username:' "$CONF/config.yaml" 2>/dev/null | sed 's/.*username: *"\{0,1\}\([^"]*\)"\{0,1\}.*/\1/')
-    S=$(ls -t "$CONF"/session_data/*.session 2>/dev/null | head -1); [ -n "$S" ] && DAYS=$(( (DRIVE_DAYS*86400 - ($(date +%s) - $(stat -c %Y "$S"))) / 86400 )) || DAYS=""
+    J=$(ls "$CONF"/session_data/* 2>/dev/null | grep -v '\.session$' | head -1)
+    E=$(sed -n 's/^Set-Cookie3: X-APPLE-WEBAUTH-HSA-TRUST=.*expires="\([^"]*\)Z".*/\1/p' "$J" 2>/dev/null | head -1)
+    [ -n "$E" ] && DAYS=$(( ($(date -u -d "$E" +%s) - $(date +%s)) / 86400 )) || DAYS=""
     CHAT=$GROUP
   fi
   [ -z "$DAYS" ] && { echo "$C: giorni n/d, salto"; continue; }

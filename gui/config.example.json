@@ -9,5 +9,5 @@
   },
   "aliases": {"family": "famiglia", "sdimambro": "simone", "dmanieri": "daniela", "sofdimambro": "sofia", "mdimambro": "maria", "drive-sdimambro": "simone-drive", "sdimambro-drive": "simone-drive"},
   "paths": {"appdata": "/appdata", "photos": "/photos", "templates": "/templates", "documents": "/documents"},
-  "defaults": {"image": "boredazfcuk/icloudpd", "drive_image": "mandarons/icloud-drive", "drive_session_days": 30, "drive_sync_interval": 1800, "tz": "Europe/Rome", "folder_structure": "{:%Y/%m}", "user": "nobody", "user_id": "99", "group": "users", "group_id": "100", "notification_days": "3"}
+  "defaults": {"image": "boredazfcuk/icloudpd", "drive_image": "mandarons/icloud-drive", "drive_sync_interval": 1800, "tz": "Europe/Rome", "folder_structure": "{:%Y/%m}", "user": "nobody", "user_id": "99", "group": "users", "group_id": "100", "notification_days": "3"}
 }

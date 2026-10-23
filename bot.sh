@@ -5,7 +5,7 @@
 # Comandi accettati SOLO dalle chat in ALLOWED_CHATS (chat privata di Simone e gruppo di famiglia):
 #   #sofia auth        → avvia la riautenticazione del container di "sofia" (Apple manda il codice ai dispositivi dell'account)
 #   #sofia 123456      → consegna il codice al container
-#   #stato             → giorni rimanenti della sessione Apple di ogni container
+#   #stato             → giorni rimanenti del cookie di fiducia Apple di ogni container
 #   #aiuto             → elenco comandi
 # Utenti, container, tipo e alias stanno in config.json (condiviso con la GUI). Richiede TELEGRAM_TOKEN e ALLOWED_CHATS.
 set -u
@@ -17,7 +17,7 @@ load_cfg(){ C=(); T=(); A=(); U=()
   while IFS=$'\t' read -r n c t a; do [ -n "$n" ] && { C[$n]=$c; T[$n]=${t:-icloudpd}; A[$n]=$a; U[$n]=$n; }; done < <(jq -r '.users|to_entries[]|[.key,.value.container,(.value.type//"icloudpd"),(.value.apple_id//"")]|@tsv' "$CFG" 2>/dev/null)
   while IFS=$'\t' read -r a n; do [ -n "$a" ] && [ -n "${C[$n]:-}" ] && U[$a]=$n; done < <(jq -r '.aliases|to_entries[]|[.key,.value]|@tsv' "$CFG" 2>/dev/null)
   NAMES=$(jq -r '.users|keys|join(" ")' "$CFG" 2>/dev/null)
-  DRIVE_DAYS=$(jq -r '.defaults.drive_session_days // 30' "$CFG" 2>/dev/null); }
+  }
 load_cfg
 log(){ echo "$(date '+%F %T') $*"; }
 say(){ curl -s -X POST "$API/sendMessage" -d chat_id="$1" --data-urlencode text="$2" >/dev/null; }
@@ -36,7 +36,8 @@ d_running(){ docker exec "$1" sh -c 'pgrep -f "icloud --username" >/dev/null' 2>
 d_start(){ # $1 container $2 apple id — il codice arriva da una FIFO tenuta aperta in lettura/scrittura (fd 3) così icloud non si blocca
   docker exec "$1" sh -c "rm -f /tmp/2fa.fifo /tmp/2fa.log; mkfifo -m 666 /tmp/2fa.fifo; nohup sh -c 'exec 3<>/tmp/2fa.fifo; su-exec abc icloud --username=$2 --session-directory=/config/session_data <&3 >/tmp/2fa.log 2>&1; echo EXIT=\$? >>/tmp/2fa.log; rm -f /tmp/2fa.fifo' >/dev/null 2>&1 &"; }
 d_code(){ docker exec "$1" sh -c "printf '%s\n' '$2' > /tmp/2fa.fifo"; }
-d_days(){ local m; m=$(docker exec "$1" sh -c 'f=$(ls -t /config/session_data/*.session 2>/dev/null | head -1); [ -n "$f" ] && stat -c %Y "$f"'); [ -z "$m" ] && return; echo $(( (m + DRIVE_DAYS*86400 - $(date +%s)) / 86400 )); }
+d_days(){ # giorni alla scadenza del cookie di fiducia Apple (X-APPLE-WEBAUTH-HSA-TRUST, ~90 gg; l'app lo rinnova da sola finche' la sessione vive)
+  docker exec "$1" sh -c 'f=$(ls /config/session_data/* 2>/dev/null | grep -v "\.session$" | head -1); [ -n "$f" ] || exit 0; e=$(sed -n "s/^Set-Cookie3: X-APPLE-WEBAUTH-HSA-TRUST=.*expires=\"\([^\"]*\)Z\".*/\1/p" "$f" | head -1); [ -n "$e" ] || exit 0; echo $(( ($(date -u -d "$e" +%s) - $(date +%s)) / 86400 ))' 2>/dev/null; }
 d_ok(){ docker exec "$1" sh -c 'grep -q "EXIT=0" /tmp/2fa.log 2>/dev/null && ! grep -qi "failed\|invalid\|error" /tmp/2fa.log'; }
 # ---- dispatch per tipo
 running(){ [ "${T[$1]}" = iclouddrive ] && d_running "${C[$1]}" || { [ "${T[$1]}" != iclouddrive ] && p_running "${C[$1]}"; }; }
